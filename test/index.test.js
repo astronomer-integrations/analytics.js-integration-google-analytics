@@ -1311,6 +1311,23 @@ describe('Google Analytics', function() {
           }]);
           analytics.deepEqual(toArray(window.ga.args[5]), ['send', 'event', 'EnhancedEcommerce', 'order refunded', { nonInteraction: 1 }]);
         });
+
+        it('should send product shared data', function() {
+          analytics.track('Product Shared', {
+            share_via: 'email',
+            share_message: 'Hey, check out this item',
+            recipient: 'friend@gmail.com',
+            product_id: '507f1f77bcf86cd799439011',
+            sku: 'G-32',
+            category: 'Games',
+            name: 'Monopoly: 3rd Edition',
+            brand: 'Hasbro',
+            variant: '200 pieces',
+            price: 18.99
+          });
+
+          analytics.assert(window.ga.args.length === 6);
+        });
       });
     });
   });
