@@ -1,3 +1,74 @@
+2.12.0 / 2018-02-06
+=================
+
+* Support custom dimensions for enhanced ecommerce events.
+
+2.9.6 / 2017-11-28
+=================
+
+* Add support for useGoogleAmpClientId option.
+
+2.9.5 / 2017-10-26
+=================
+
+* Release to support reversion of failed deploy.
+
+2.9.4 / 2017-08-31
+=================
+
+* Fix tracker naming from 2.9
+
+2.9.3 / 2017-08-28
+==================
+
+  * Fix breaking changes in 2.9.1
+
+2.9.2 / 2017-08-25
+==================
+
+  * Revert 2.9.0 and 2.9.1 
+
+2.9.1 / 2017-08-25
+==================
+
+  * Gate naming the GA tracker with an option
+
+2.9.0 / 2017-24-08
+==================
+
+  * Use custom name for tracker rather than default unnamed
+
+2.8.0 / 2017-06-13
+==================
+
+  * Extend previous change to apply for custom properties of `page` events.
+
+2.7.0 / 2017-05-31
+==================
+
+  * Add an interface option to stop the integration from setting custom metrics/dimensions to the global GA tracker object
+
+2.6.0 / 2017-05-10
+==================
+
+  * Sets id, when present, as a custom dimension on ga tracker object out of the box
+
+2.5.1 / 2017-05-05
+==================
+
+  * Remove excess pageview from addImpression-bound events
+
+2.5.0 / 2017-04-27
+==================
+
+  * Allow user to override global nonInteraction setting
+
+2.4.1 / 2017-03-09
+==================
+
+  * Renamed 'sorters' to 'sorts' to match spec
+  * Protected against non-array inputs
+
 2.4.0 / 2017-03-07
 ==================
 
@@ -6,7 +77,7 @@
 2.3.0 / 2016-12-08
 ==================
 
-  * Add Support for Optimize 
+  * Add Support for Optimize
 
 2.2.0 / 2016-09-06
 ==================

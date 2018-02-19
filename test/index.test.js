@@ -37,12 +37,14 @@ describe('Google Analytics', function() {
       .option('classic', false)
       .option('contentGroupings', {})
       .option('dimensions', {})
+      .option('useGoogleAmpClientId', false)
       .option('domain', 'auto')
       .option('doubleClick', false)
       .option('enhancedEcommerce', false)
       .option('enhancedLinkAttribution', false)
       .option('ignoredReferrers', null)
       .option('includeSearch', false)
+      .option('setAllMappedProps', true)
       .option('metrics', {})
       .option('nonInteraction', false)
       .option('sendUserId', false)
@@ -51,6 +53,7 @@ describe('Google Analytics', function() {
       .option('trackNamedPages', true)
       .option('trackingId', '')
       .option('optimize', '')
+      .option('nameTracker', false)
       .option('sampleRate', 100));
   });
 
@@ -60,7 +63,8 @@ describe('Google Analytics', function() {
       domain: 'auto',
       siteSpeedSampleRate: 42,
       sampleRate: 15,
-      trackingId: 'UA-27033709-12'
+      trackingId: 'UA-27033709-12',
+      useGoogleAmpClientId: false
     };
 
     beforeEach(function() {
@@ -118,10 +122,41 @@ describe('Google Analytics', function() {
             cookieDomain: 'none',
             siteSpeedSampleRate: settings.siteSpeedSampleRate,
             sampleRate: settings.sampleRate,
-            allowLinker: true
+            allowLinker: true,
+            useGoogleAmpClientId: false
           };
           // required to pass saucelab tests since those tests are not done in localhost
           if (window.location.hostname !== 'localhost') expectedOpts.cookieDomain = 'auto';
+          analytics.initialize();
+          analytics.page();
+          analytics.deepEqual(toArray(window.ga.q[0]), ['create', settings.trackingId, expectedOpts]);
+        });
+
+        it('should name ga tracker if opted in', function() {
+          var expectedOpts = {
+            cookieDomain: 'none',
+            siteSpeedSampleRate: settings.siteSpeedSampleRate,
+            sampleRate: settings.sampleRate,
+            allowLinker: true,
+            name: 'segmentGATracker',
+            useGoogleAmpClientId: false
+          };
+          ga.options.nameTracker = true;
+          analytics.initialize();
+          analytics.page();
+          analytics.deepEqual(toArray(window.ga.q[0]), ['create', settings.trackingId, expectedOpts]);
+        });
+
+        it('should use AMP Id as the Client Id if the setting is enabled', function() {
+          ga.options.useGoogleAmpClientId = true;
+          var expectedOpts = {
+            cookieDomain: 'none',
+            siteSpeedSampleRate: settings.siteSpeedSampleRate,
+            sampleRate: settings.sampleRate,
+            allowLinker: true,
+            useGoogleAmpClientId: true
+          };
+
           analytics.initialize();
           analytics.page();
           analytics.deepEqual(toArray(window.ga.q[0]), ['create', settings.trackingId, expectedOpts]);
@@ -276,6 +311,26 @@ describe('Google Analytics', function() {
           });
         });
 
+        it('should not set custom dimensions/metrics if settings.setAllMappedProps is false', function() {
+          ga.options.setAllMappedProps = false;
+          ga.options.metrics = { loadTime: 'metric1', levelAchieved: 'metric2' };
+          ga.options.dimensions = { company: 'dimension2' };
+          analytics.page('Page Viewed', { loadTime: '100', levelAchieved: '5', company: 'Google' });
+          analytics.didNotCall(window.ga, 'set', {
+            metric1: '100',
+            metric2: '5',
+            dimension2: 'Google'
+          });
+          analytics.called(window.ga, 'send', 'pageview', {
+            page: window.location.pathname,
+            title: 'Page Viewed',
+            location: window.location.protocol + '//' + window.location.hostname + (window.location.port ? ':' + window.location.port : '') + window.location.pathname + window.location.search,
+            metric1: '100',
+            metric2: '5',
+            dimension2: 'Google'
+          });
+        });
+
         it('should send the query if its included', function() {
           ga.options.includeSearch = true;
           analytics.page('category', 'name', { url: 'url', path: '/path', search: '?q=1' });
@@ -309,7 +364,7 @@ describe('Google Analytics', function() {
           });
         });
 
-        it('should map custom dimensions, metrics & content groupings using track.properties()', function() {
+        it('should map and set custom dimensions, metrics & content groupings using page.properties()', function() {
           ga.options.metrics = { score: 'metric1' };
           ga.options.dimensions = { author: 'dimension1', postType: 'dimension2' };
           ga.options.contentGroupings = { section: 'contentGrouping1' };
@@ -603,12 +658,49 @@ describe('Google Analytics', function() {
           });
         });
 
-        it('should map custom dimensions & metrics using track.properties()', function() {
+        it('should give precendence to a non-interaction option defined in the event props', function() {
+          ga.options.nonInteraction = true;
+          analytics.track('event', { nonInteraction: false });
+          analytics.called(window.ga, 'send', 'event', {
+            eventCategory: 'All',
+            eventAction: 'event',
+            eventLabel: undefined,
+            eventValue: 0,
+            nonInteraction: false
+          });
+        });
+
+        it('should map and set custom dimensions & metrics using track.properties() if setAllMappedProps is true', function() {
+          ga.options.setAllMappedProps = true;
           ga.options.metrics = { loadTime: 'metric1', levelAchieved: 'metric2' };
           ga.options.dimensions = { referrer: 'dimension2' };
           analytics.track('Level Unlocked', { loadTime: '100', levelAchieved: '5', referrer: 'Google' });
 
           analytics.called(window.ga, 'set', {
+            metric1: '100',
+            metric2: '5',
+            dimension2: 'Google'
+          });
+        });
+
+        it('should send but not set custom dimensions & metrics if setAllMappedProps is false', function() {
+          ga.options.setAllMappedProps = false;
+          ga.options.metrics = { loadTime: 'metric1', levelAchieved: 'metric2' };
+          ga.options.dimensions = { referrer: 'dimension2' };
+          analytics.track('Level Unlocked', { loadTime: '100', levelAchieved: '5', referrer: 'Google' });
+
+          analytics.didNotCall(window.ga, 'set', {
+            metric1: '100',
+            metric2: '5',
+            dimension2: 'Google'
+          });
+
+          analytics.called(window.ga, 'send', 'event', {
+            eventCategory: 'All',
+            eventAction: 'Level Unlocked',
+            eventLabel: undefined,
+            eventValue: 0,
+            nonInteraction: false,
             metric1: '100',
             metric2: '5',
             dimension2: 'Google'
@@ -787,15 +879,21 @@ describe('Google Analytics', function() {
         });
 
         it('should send product added data', function() {
+          ga.options.setAllMappedProps = false;
+          ga.options.dimensions = { testDimension: 'dimension1' };
+          ga.options.metrics = { testMetric: 'metric1' };
+
           analytics.track('product added', {
             currency: 'CAD',
             quantity: 1,
             price: 24.75,
             name: 'my product',
             category: 'cat 1',
-            sku: 'p-298'
+            sku: 'p-298',
+            testDimension: true, 
+            testMetric: true
           });
-
+          
           analytics.assert(window.ga.args.length === 5);
           analytics.deepEqual(toArray(window.ga.args[1]), ['set', '&cu', 'CAD']);
           analytics.deepEqual(toArray(window.ga.args[2]), ['ec:addProduct', {
@@ -809,7 +907,11 @@ describe('Google Analytics', function() {
             currency: 'CAD'
           }]);
           analytics.deepEqual(toArray(window.ga.args[3]), ['ec:setAction', 'add', {}]);
-          analytics.deepEqual(toArray(window.ga.args[4]), ['send', 'event', 'cat 1', 'product added', { nonInteraction: 1 }]);
+          analytics.deepEqual(toArray(window.ga.args[4]), ['send', 'event', 'cat 1', 'product added', { 
+            dimension1: 'true',
+            metric1: 'true',
+            nonInteraction: 1 
+          }]);
         });
 
         it('should send send label tracking enhanced ecommerce events with Univeral Analytics', function() {
@@ -840,13 +942,19 @@ describe('Google Analytics', function() {
         });
 
         it('should send product removed data', function() {
+          ga.options.setAllMappedProps = false;
+          ga.options.dimensions = { testDimension: 'dimension1' };
+          ga.options.metrics = { testMetric: 'metric1' };
+
           analytics.track('product removed', {
             currency: 'CAD',
             quantity: 1,
             price: 24.75,
             name: 'my product',
             category: 'cat 1',
-            sku: 'p-298'
+            sku: 'p-298', 
+            testDimension: true, 
+            testMetric: true
           });
 
           analytics.assert(window.ga.args.length === 5);
@@ -862,10 +970,18 @@ describe('Google Analytics', function() {
             currency: 'CAD'
           }]);
           analytics.deepEqual(toArray(window.ga.args[3]), ['ec:setAction', 'remove', {}]);
-          analytics.deepEqual(toArray(window.ga.args[4]), ['send', 'event', 'cat 1', 'product removed', { nonInteraction: 1 }]);
+          analytics.deepEqual(toArray(window.ga.args[4]), ['send', 'event', 'cat 1', 'product removed', {
+            dimension1: 'true', 
+            metric1: 'true', 
+            nonInteraction: 1 
+          }]);
         });
 
         it('should send product viewed data', function() {
+          ga.options.setAllMappedProps = false;
+          ga.options.dimensions = { testDimension: 'dimension1' };
+          ga.options.metrics = { testMetric: 'metric1' };
+
           analytics.track('product viewed', {
             currency: 'CAD',
             quantity: 1,
@@ -873,7 +989,9 @@ describe('Google Analytics', function() {
             name: 'my product',
             category: 'cat 1',
             sku: 'p-298',
-            list: 'Apparel Gallery'
+            list: 'Apparel Gallery', 
+            testDimension: true, 
+            testMetric: true
           });
 
           analytics.assert(window.ga.args.length === 5);
@@ -889,20 +1007,30 @@ describe('Google Analytics', function() {
             currency: 'CAD'
           }]);
           analytics.deepEqual(toArray(window.ga.args[3]), ['ec:setAction', 'detail', { list: 'Apparel Gallery' }]);
-          analytics.deepEqual(toArray(window.ga.args[4]), ['send', 'event', 'cat 1', 'product viewed', { nonInteraction: 1 }]);
+          analytics.deepEqual(toArray(window.ga.args[4]), ['send', 'event', 'cat 1', 'product viewed', { 
+            dimension1: 'true', 
+            metric1: 'true',
+            nonInteraction: 1 
+          }]);
           analytics.assert(window.ga.args[1][0] === 'set');
         });
 
         it('should send product impression data via product list viewed', function() {
           // If using addImpression ever becomes optional, will need to add a setting modification here.
+          ga.options.setAllMappedProps = false;
+          ga.options.dimensions = { testDimension: 'dimension1' };
+          ga.options.metrics = { testMetric: 'metric1' };
+
           analytics.track('Product List Viewed', {
             category: 'cat 1',
             list_id: '1234',
             products: [
               { product_id: '507f1f77bcf86cd799439011' }
-            ]
+            ],
+            testDimension: true, 
+            testMetric: true
           });
-          analytics.assert(window.ga.args.length === 5);
+          analytics.assert(window.ga.args.length === 4);
           analytics.deepEqual(toArray(window.ga.args[1]), ['set', '&cu', 'USD']);
           analytics.deepEqual(toArray(window.ga.args[2]), ['ec:addImpression', {
             id: '507f1f77bcf86cd799439011',
@@ -910,12 +1038,19 @@ describe('Google Analytics', function() {
             list: '1234',
             position: 1
           }]);
-          analytics.deepEqual(toArray(window.ga.args[3]), ['send', 'pageview']);
-          analytics.deepEqual(toArray(window.ga.args[4]), ['send', 'event', 'cat 1', 'Product List Viewed', { nonInteraction: 1 }]);
+          analytics.deepEqual(toArray(window.ga.args[3]), ['send', 'event', 'cat 1', 'Product List Viewed', { 
+            dimension1: 'true', 
+            metric1: 'true',
+            nonInteraction: 1 
+          }]);
         });
 
         it('should send product impression data via product list filtered', function() {
           // If using addImpression ever becomes optional, will need to add a setting modification here.
+          ga.options.setAllMappedProps = false;
+          ga.options.dimensions = { testDimension: 'dimension1' };
+          ga.options.metrics = { testMetric: 'metric1' };
+
           analytics.track('Product List Filtered', {
             category: 'cat 1',
             list_id: '1234',
@@ -927,15 +1062,17 @@ describe('Google Analytics', function() {
               type: 'price',
               value: 'under'
             }],
-            sorters:[ {
+            sorts:[ {
               type: 'price',
               value: 'desc'
             }],
             products: [
               { product_id: '507f1f77bcf86cd799439011' }
-            ]
+            ],
+            testDimension: true,
+            testMetric: true
           });
-          analytics.assert(window.ga.args.length === 5);
+          analytics.assert(window.ga.args.length === 4);
           analytics.deepEqual(toArray(window.ga.args[1]), ['set', '&cu', 'USD']);
           analytics.deepEqual(toArray(window.ga.args[2]), ['ec:addImpression', {
             id: '507f1f77bcf86cd799439011',
@@ -944,11 +1081,18 @@ describe('Google Analytics', function() {
             position: 1,
             variant: 'department:beauty,price:under::price:desc'
           }]);
-          analytics.deepEqual(toArray(window.ga.args[3]), ['send', 'pageview']);
-          analytics.deepEqual(toArray(window.ga.args[4]), ['send', 'event', 'cat 1', 'Product List Filtered', { nonInteraction: 1 }]);
+          analytics.deepEqual(toArray(window.ga.args[3]), ['send', 'event', 'cat 1', 'Product List Filtered', { 
+            dimension1: 'true', 
+            metric1: 'true',
+            nonInteraction: 1 
+          }]);
         });
 
         it('should send product clicked data', function() {
+          ga.options.setAllMappedProps = false;
+          ga.options.dimensions = { testDimension: 'dimension1' };
+          ga.options.metrics = { testMetric: 'metric1' };
+
           analytics.track('product clicked', {
             currency: 'CAD',
             quantity: 1,
@@ -956,7 +1100,9 @@ describe('Google Analytics', function() {
             name: 'my product',
             category: 'cat 1',
             sku: 'p-298',
-            list: 'search results'
+            list: 'search results', 
+            testDimension: true,
+            testMetric: true
           });
 
           analytics.assert(window.ga.args.length === 5);
@@ -972,16 +1118,26 @@ describe('Google Analytics', function() {
             currency: 'CAD'
           }]);
           analytics.deepEqual(toArray(window.ga.args[3]), ['ec:setAction', 'click', { list: 'search results' }]);
-          analytics.deepEqual(toArray(window.ga.args[4]), ['send', 'event', 'cat 1', 'product clicked', { nonInteraction: 1 }]);
+          analytics.deepEqual(toArray(window.ga.args[4]), ['send', 'event', 'cat 1', 'product clicked', { 
+            dimension1: 'true', 
+            metric1: 'true',
+            nonInteraction: 1 
+          }]);
         });
 
         it('should send promotion viewed data', function() {
+          ga.options.setAllMappedProps = false;
+          ga.options.dimensions = { testDimension: 'dimension1' };
+          ga.options.metrics = { testMetric: 'metric1' };
+
           analytics.track('promotion viewed', {
             currency: 'CAD',
             promotion_id: 'PROMO_1234',
             name: 'Summer Sale',
             creative: 'summer_banner2',
-            position: 'banner_slot1'
+            position: 'banner_slot1', 
+            testDimension: true,
+            testMetric: true
           });
 
           analytics.assert(window.ga.args.length === 4);
@@ -992,16 +1148,26 @@ describe('Google Analytics', function() {
             creative: 'summer_banner2',
             position: 'banner_slot1'
           }]);
-          analytics.deepEqual(toArray(window.ga.args[3]), ['send', 'event', 'EnhancedEcommerce', 'promotion viewed', { nonInteraction: 1 }]);
+          analytics.deepEqual(toArray(window.ga.args[3]), ['send', 'event', 'EnhancedEcommerce', 'promotion viewed', { 
+            dimension1: 'true', 
+            metric1: 'true',
+            nonInteraction: 1 
+          }]);
         });
 
         it('should send promotion clicked data', function() {
+          ga.options.setAllMappedProps = false;
+          ga.options.dimensions = { testDimension: 'dimension1' };
+          ga.options.metrics = { testMetric: 'metric1' };
+
           analytics.track('promotion clicked', {
             currency: 'CAD',
             promotion_id: 'PROMO_1234',
             name: 'Summer Sale',
             creative: 'summer_banner2',
-            position: 'banner_slot1'
+            position: 'banner_slot1', 
+            testDimension: true,
+            testMetric: true
           });
 
           analytics.assert(window.ga.args.length === 5);
@@ -1013,10 +1179,18 @@ describe('Google Analytics', function() {
             position: 'banner_slot1'
           }]);
           analytics.deepEqual(toArray(window.ga.args[3]), ['ec:setAction', 'promo_click', {}]);
-          analytics.deepEqual(toArray(window.ga.args[4]), ['send', 'event', 'EnhancedEcommerce', 'promotion clicked', { nonInteraction: 1 }]);
+          analytics.deepEqual(toArray(window.ga.args[4]), ['send', 'event', 'EnhancedEcommerce', 'promotion clicked', { 
+            dimension1: 'true', 
+            metric1: 'true',
+            nonInteraction: 1 
+          }]);
         });
 
         it('should send order started data', function() {
+          ga.options.setAllMappedProps = false;
+          ga.options.dimensions = { testDimension: 'dimension1' };
+          ga.options.metrics = { testMetric: 'metric1' };
+
           analytics.track('checkout started', {
             currency: 'CAD',
             products: [{
@@ -1031,7 +1205,9 @@ describe('Google Analytics', function() {
               sku: 'p-299'
             }],
             step: 1,
-            paymentMethod: 'Visa'
+            paymentMethod: 'Visa', 
+            testDimension: true,
+            testMetric: true
           });
           analytics.assert(window.ga.args.length === 6);
           analytics.deepEqual(toArray(window.ga.args[1]), ['set', '&cu', 'CAD']);
@@ -1059,10 +1235,18 @@ describe('Google Analytics', function() {
             step: 1,
             option: 'Visa'
           }]);
-          analytics.deepEqual(toArray(window.ga.args[5]), ['send', 'event', 'EnhancedEcommerce', 'checkout started', { nonInteraction: 1 }]);
+          analytics.deepEqual(toArray(window.ga.args[5]), ['send', 'event', 'EnhancedEcommerce', 'checkout started', { 
+            dimension1: 'true', 
+            metric1: 'true',
+            nonInteraction: 1 
+          }]);
         });
 
         it('should send order updated data', function() {
+          ga.options.setAllMappedProps = false;
+          ga.options.dimensions = { testDimension: 'dimension1' };
+          ga.options.metrics = { testMetric: 'metric1' };
+
           analytics.track('order updated', {
             currency: 'CAD',
             products: [{
@@ -1079,7 +1263,9 @@ describe('Google Analytics', function() {
               sku: 'p-299'
             }],
             step: 1,
-            paymentMethod: 'Visa'
+            paymentMethod: 'Visa', 
+            testDimension: true,
+            testMetric: true
           });
           analytics.assert(window.ga.args.length === 6);
           analytics.deepEqual(toArray(window.ga.args[1]), ['set', '&cu', 'CAD']);
@@ -1107,7 +1293,11 @@ describe('Google Analytics', function() {
             step: 1,
             option: 'Visa'
           }]);
-          analytics.deepEqual(toArray(window.ga.args[5]), ['send', 'event', 'EnhancedEcommerce', 'order updated', { nonInteraction: 1 }]);
+          analytics.deepEqual(toArray(window.ga.args[5]), ['send', 'event', 'EnhancedEcommerce', 'order updated', { 
+            dimension1: 'true', 
+            metric1: 'true',
+            nonInteraction: 1 
+          }]);
         });
 
         it('should send checkout step viewed data', function() {
@@ -1191,6 +1381,10 @@ describe('Google Analytics', function() {
         });
 
         it('should send order completed data', function() {
+          ga.options.setAllMappedProps = false;
+          ga.options.dimensions = { testDimension: 'dimension1' };
+          ga.options.metrics = { testMetric: 'metric1' };
+
           analytics.track('order completed', {
             orderId: '780bc55',
             total: 99.9,
@@ -1199,6 +1393,8 @@ describe('Google Analytics', function() {
             currency: 'CAD',
             coupon: 'coupon',
             affiliation: 'affiliation',
+            testDimension: true,
+            testMetric: true,
             products: [{
               quantity: 1,
               price: 24.75,
@@ -1245,7 +1441,11 @@ describe('Google Analytics', function() {
             shipping: 13.99,
             coupon: 'coupon'
           }]);
-          analytics.deepEqual(toArray(window.ga.args[5]), ['send', 'event', 'EnhancedEcommerce', 'order completed', { nonInteraction: 1 }]);
+          analytics.deepEqual(toArray(window.ga.args[5]), ['send', 'event', 'EnhancedEcommerce', 'order completed', { 
+            nonInteraction: 1, 
+            metric1: 'true', 
+            dimension1: 'true' 
+          }]);
         });
 
         it('should add coupon to product level in order completed', function() {
@@ -1328,16 +1528,28 @@ describe('Google Analytics', function() {
         });
 
         it('should send full order refunded data', function() {
-          analytics.track('order refunded', { orderId: '780bc55' });
+          ga.options.setAllMappedProps = false;
+          ga.options.dimensions = { testDimension: 'dimension1' };
+          ga.options.metrics = { testMetric: 'metric1' };
+
+          analytics.track('order refunded', { orderId: '780bc55', testDimension: true, testMetric: true });
 
           analytics.assert(window.ga.args.length === 4);
           analytics.deepEqual(toArray(window.ga.args[2]), ['ec:setAction', 'refund', {
             id: '780bc55'
           }]);
-          analytics.deepEqual(toArray(window.ga.args[3]), ['send', 'event', 'EnhancedEcommerce', 'order refunded', { nonInteraction: 1 }]);
+          analytics.deepEqual(toArray(window.ga.args[3]), ['send', 'event', 'EnhancedEcommerce', 'order refunded', { 
+            dimension1: 'true', 
+            metric1: 'true',
+            nonInteraction: 1 
+          }]);
         });
 
         it('should send partial order refunded data', function() {
+          ga.options.setAllMappedProps = false;
+          ga.options.dimensions = { testDimension: 'dimension1' };
+          ga.options.metrics = { testMetric: 'metric1' };
+
           analytics.track('order refunded', {
             orderId: '780bc55',
             products: [{
@@ -1346,7 +1558,9 @@ describe('Google Analytics', function() {
             }, {
               quantity: 2,
               sku: 'p-299'
-            }]
+            }], 
+            testDimension: true,
+            testMetric: true
           });
 
           analytics.assert(window.ga.args.length === 6);
@@ -1361,7 +1575,11 @@ describe('Google Analytics', function() {
           analytics.deepEqual(toArray(window.ga.args[4]), ['ec:setAction', 'refund', {
             id: '780bc55'
           }]);
-          analytics.deepEqual(toArray(window.ga.args[5]), ['send', 'event', 'EnhancedEcommerce', 'order refunded', { nonInteraction: 1 }]);
+          analytics.deepEqual(toArray(window.ga.args[5]), ['send', 'event', 'EnhancedEcommerce', 'order refunded', { 
+            dimension1: 'true',
+            metric1: 'true',
+            nonInteraction: 1 
+          }]);
         });
       });
     });
