@@ -1,3 +1,32 @@
+2.16.0 / 2019-03-05
+===================
+
+  * Add support for product level custom dimensions to Product List Viewed and Product List Filtered handlers
+
+2.15.0 / 2018-08-07
+===================
+
+  * Fix casing from abmiguous docs
+  * Bump version
+  * Add lodash to package.json
+  * Correct casing on parameter name
+  * Change amp id setting name
+
+2.15.0 / 2018-08-06
+==================
+
+  * Change amp id setting name
+
+2.14.0 / 2018-03-28
+=================
+
+* Support position property as part of product data.
+
+2.13.0 / 2018-02-26
+=================
+
+* Support product-level custom dimensions for enhanced ecommerce events.
+
 2.12.0 / 2018-02-06
 =================
 
@@ -26,7 +55,7 @@
 2.9.2 / 2017-08-25
 ==================
 
-  * Revert 2.9.0 and 2.9.1 
+  * Revert 2.9.0 and 2.9.1
 
 2.9.1 / 2017-08-25
 ==================
