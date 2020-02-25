@@ -1,7 +1,7 @@
 {
   "name": "@astronomerio/analytics.js-integration-google-analytics",
   "description": "The Google Analytics analytics.js integration.",
-  "version": "2.16.0",
+  "version": "2.18.2",
   "keywords": [
     "analytics.js",
     "analytics.js-integration",

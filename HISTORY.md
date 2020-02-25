@@ -1,3 +1,23 @@
+2.18.2  / 2020-02-18
+===================
+  * Fix a bug where we are sending a product level category for the event category. We will send Google Analytics an event category of `'EnhancedEcommerce'` for the following events: `'product clicked'`, `product removed`, `product added` and `product viewed`.
+
+
+2.18.0 / 2019-12-17
+===================
+
+  * Reset custom dimensions before send if configured.
+
+2.17.1 / 2019-11-04
+===================
+
+  * Reset custom dimensions before send.
+
+2.17.0 / 2019-09-25
+===================
+
+  * Add support for user defined position for product in product list.
+
 2.16.0 / 2019-03-05
 ===================
 
