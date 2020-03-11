@@ -1,3 +1,52 @@
+2.18.2  / 2020-02-18
+===================
+  * Fix a bug where we are sending a product level category for the event category. We will send Google Analytics an event category of `'EnhancedEcommerce'` for the following events: `'product clicked'`, `product removed`, `product added` and `product viewed`.
+
+
+2.18.0 / 2019-12-17
+===================
+
+  * Reset custom dimensions before send if configured.
+
+2.17.1 / 2019-11-04
+===================
+
+  * Reset custom dimensions before send.
+
+2.17.0 / 2019-09-25
+===================
+
+  * Add support for user defined position for product in product list.
+
+2.16.0 / 2019-03-05
+===================
+
+  * Add support for product level custom dimensions to Product List Viewed and Product List Filtered handlers
+
+2.15.0 / 2018-08-07
+===================
+
+  * Fix casing from abmiguous docs
+  * Bump version
+  * Add lodash to package.json
+  * Correct casing on parameter name
+  * Change amp id setting name
+
+2.15.0 / 2018-08-06
+==================
+
+  * Change amp id setting name
+
+2.14.0 / 2018-03-28
+=================
+
+* Support position property as part of product data.
+
+2.13.0 / 2018-02-26
+=================
+
+* Support product-level custom dimensions for enhanced ecommerce events.
+
 2.12.0 / 2018-02-06
 =================
 
@@ -26,7 +75,7 @@
 2.9.2 / 2017-08-25
 ==================
 
-  * Revert 2.9.0 and 2.9.1 
+  * Revert 2.9.0 and 2.9.1
 
 2.9.1 / 2017-08-25
 ==================
